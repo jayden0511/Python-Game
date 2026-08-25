@@ -13,7 +13,7 @@ from pathlib import Path
 
 # Initialize Pygame
 pygame.init() 
-
+ 
 images_dir = Path(__file__).parent / "images" if (Path(__file__).parent / "images").exists() else Path(__file__).parent / "assets"
 
 # Screen dimensions
@@ -38,7 +38,7 @@ class Settings:
     # Obstacle attributes
     OBSTACLE_WIDTH = 20
     OBSTACLE_HEIGHT = 20 
-    obstacle_speed = 5
+    obstacle_speed = 3
 
 settings = Settings()
 screen = pygame.display.set_mode((settings.WIDTH, settings.HEIGHT))
@@ -131,6 +131,7 @@ def game_loop():
     player = Player()
 
     obstacle_count = 0
+    speed_level = 0
     obstacle_speed = settings.obstacle_speed
 
     while not game_over:
@@ -143,11 +144,15 @@ def game_loop():
         player.update()
 
         # Add obstacles and update
-        if pygame.time.get_ticks() - last_obstacle_time > 1:
+        if pygame.time.get_ticks() - last_obstacle_time > 1000:
             last_obstacle_time = pygame.time.get_ticks()
+            new_obstacle += add_obstacle(obstacles)
             obstacle_count += add_obstacle(obstacles)
-        if obstacle_count % 5 == 0:
+        if obstacle_count > 0 and obstacle_count % 10 == 0:
             settings.obstacle_speed += 1
+
+            if obstacle_count % 10 == 0:
+                settings.obstacle_speed += 1
         
         obstacles.update()
 
@@ -212,7 +217,7 @@ def game_loop():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
                     waiting = False
-                    game_loop()
+                    
 
 
 if __name__ == "__main__":
