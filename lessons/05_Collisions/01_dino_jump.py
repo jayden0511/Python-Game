@@ -34,6 +34,8 @@ class Settings:
     PLAYER_SIZE = 25
 
     player_speed = 5
+    jump_strength = 12
+    gravity = 0.6
 
     # Obstacle attributes
     OBSTACLE_WIDTH = 20
@@ -85,19 +87,29 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = 50
         self.rect.y = settings.HEIGHT - settings.PLAYER_SIZE - 10
         self.speed = settings.player_speed
+        self.velocity_y = 0
+        self.on_ground = True
 
     def update(self):
         keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE] and self.on_ground:
+            self.velocity_y = -settings.jump_strength
+            self.on_ground = False
         if keys[pygame.K_UP]:
             self.rect.y -= self.speed
         if keys[pygame.K_DOWN]:
             self.rect.y += self.speed
+
+        self.velocity_y += settings.gravity
+        self.rect.y += self.velocity_y
 
         # Keep the player on screen
         if self.rect.top < 0:
             self.rect.top = 0
         if self.rect.bottom > settings.HEIGHT:
             self.rect.bottom = settings.HEIGHT
+            self.velocity_y = 0
+            self.on_ground = True
 
 # Create a player object
 player = Player()
@@ -135,6 +147,7 @@ def game_loop():
     obstacle_speed = settings.obstacle_speed
 
     while not game_over:
+        new_obstacle = 0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -147,12 +160,9 @@ def game_loop():
         if pygame.time.get_ticks() - last_obstacle_time > 1000:
             last_obstacle_time = pygame.time.get_ticks()
             new_obstacle += add_obstacle(obstacles)
-            obstacle_count += add_obstacle(obstacles)
-        if obstacle_count > 0 and obstacle_count % 10 == 0:
+            obstacle_count += new_obstacle
+        if new_obstacle and obstacle_count % 15 == 0:
             settings.obstacle_speed += 1
-
-            if obstacle_count % 10 == 0:
-                settings.obstacle_speed += 1
         
         obstacles.update()
 
@@ -216,9 +226,10 @@ def game_loop():
                 quit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
-                    waiting = False
+                    return
                     
 
 
 if __name__ == "__main__":
-    game_loop()
+    while True:
+        game_loop()
