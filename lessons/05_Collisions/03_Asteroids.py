@@ -16,6 +16,7 @@ pygame.init()
  
 images_dir = Path(__file__).parent / "images" if (Path(__file__).parent / "images").exists() else Path(__file__).parent / "assets"
 
+
 # Screen dimensions
 
 class Settings:
@@ -39,7 +40,7 @@ class Settings:
 
     # Obstacle attributes
     OBSTACLE_WIDTH = 20
-    OBSTACLE_HEIGHT = 20 
+    OBSTACLE_HEIGHT = 30
     obstacle_speed = 3
 
 settings = Settings()
@@ -54,13 +55,21 @@ font = pygame.font.SysFont(None, 36)
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((settings.OBSTACLE_WIDTH, settings.OBSTACLE_HEIGHT))
-        self.image.fill(settings.BLACK)
+        self.image = pygame.image.load(
+            images_dir / "cactus_9.png"
+        ).convert_alpha()
+
+        self.image = pygame.transform.scale(
+                    self.image, (20, 30)
+                )
         self.rect = self.image.get_rect()
         self.rect.x = settings.WIDTH
         self.rect.y = settings.HEIGHT - settings.OBSTACLE_HEIGHT - 10
 
         self.explosion = pygame.image.load(images_dir / "explosion1.gif")
+        
+        
+    
 
     def update(self):
         self.rect.x -= settings.obstacle_speed
@@ -79,10 +88,15 @@ class Obstacle(pygame.sprite.Sprite):
 
 # Define a player class
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self): 
         super().__init__()
-        self.image = pygame.Surface((settings.PLAYER_SIZE, settings.PLAYER_SIZE))
-        self.image.fill(settings.BLUE)
+        self.image = pygame.image.load(
+            images_dir / "dino_0.png"
+        ).convert_alpha()
+        self.image = pygame.transform.scale(
+            self.image, (40, 40)
+        )
+
         self.rect = self.image.get_rect()
         self.rect.x = 50
         self.rect.y = settings.HEIGHT - settings.PLAYER_SIZE - 10
@@ -133,6 +147,7 @@ def add_obstacle(obstacles):
 
 # Main game loop
 def game_loop():
+    global high_score
     clock = pygame.time.Clock()
     game_over = False
     last_obstacle_time = pygame.time.get_ticks()
@@ -143,11 +158,15 @@ def game_loop():
     player = Player()
 
     obstacle_count = 0
+    score = 0
     speed_level = 0
     obstacle_speed = settings.obstacle_speed
 
     while not game_over:
         new_obstacle = 0
+    
+
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -158,6 +177,7 @@ def game_loop():
 
         # Add obstacles and update
         if pygame.time.get_ticks() - last_obstacle_time > 1000:
+            score += 1
             last_obstacle_time = pygame.time.get_ticks()
             new_obstacle += add_obstacle(obstacles)
             obstacle_count += new_obstacle
@@ -171,15 +191,17 @@ def game_loop():
         if collider:
             collider[0].explode()
             game_over =True
+        if score > high_score:
+            high_score = score
        
         # Draw everything
         screen.fill(settings.WHITE)
-        pygame.draw.rect(screen, settings.BLUE, player.rect)
+        screen.blit(player.image, player.rect)
         obstacles.draw(screen) 
 
         # Display obstacle count
-        obstacle_text = font.render(f"Obstacles: {obstacle_count}", True, settings.BLACK)
-        screen.blit(obstacle_text, (10, 10))
+        score_text = font.render(f"Score: {score}", True, settings.BLACK)
+        screen.blit(score_text, (10, 10))
 
         pygame.display.update()
         clock.tick(settings.FPS)
@@ -198,6 +220,12 @@ def game_loop():
         True,
         settings.BLACK
     )
+    high_score_text = font.render(
+        f"High Score: {high_score}",
+        True,
+        settings.BLACK
+    )
+
 
     screen.blit(
         game_over_text,
@@ -214,6 +242,13 @@ def game_loop():
             settings.HEIGHT // 2 + 20,
         )
     )
+    screen.blit(
+                high_score_text,
+            (
+                settings.WIDTH // 2 - high_score_text.get_width() // 2,
+                settings.HEIGHT // 2 + 60,
+            )
+        )
 
     pygame.display.update()
 
@@ -229,7 +264,7 @@ def game_loop():
                     return
                     
 
- 
+high_score = 0
 if __name__ == "__main__":
     while True:
         game_loop() 

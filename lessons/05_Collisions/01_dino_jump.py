@@ -40,7 +40,7 @@ class Settings:
 
     # Obstacle attributes
     OBSTACLE_WIDTH = 20
-    OBSTACLE_HEIGHT = 20 
+    OBSTACLE_HEIGHT = 30
     obstacle_speed = 3
 
 settings = Settings()
@@ -55,8 +55,13 @@ font = pygame.font.SysFont(None, 36)
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((settings.OBSTACLE_WIDTH, settings.OBSTACLE_HEIGHT))
-        self.image.fill(settings.BLACK)
+        self.image = pygame.image.load(
+            images_dir / "cactus_9.png"
+        ).convert_alpha()
+
+        self.image = pygame.transform.scale(
+                    self.image, (20, 30)
+                )
         self.rect = self.image.get_rect()
         self.rect.x = settings.WIDTH
         self.rect.y = settings.HEIGHT - settings.OBSTACLE_HEIGHT - 10
@@ -83,10 +88,15 @@ class Obstacle(pygame.sprite.Sprite):
 
 # Define a player class
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self): 
         super().__init__()
-        self.image = pygame.Surface((settings.PLAYER_SIZE, settings.PLAYER_SIZE))
-        self.image.fill(settings.BLUE)
+        self.image = pygame.image.load(
+            images_dir / "dino_0.png"
+        ).convert_alpha()
+        self.image = pygame.transform.scale(
+            self.image, (40, 40)
+        )
+
         self.rect = self.image.get_rect()
         self.rect.x = 50
         self.rect.y = settings.HEIGHT - settings.PLAYER_SIZE - 10
@@ -186,7 +196,7 @@ def game_loop():
        
         # Draw everything
         screen.fill(settings.WHITE)
-        pygame.draw.rect(screen, settings.BLUE, player.rect)
+        screen.blit(player.image, player.rect)
         obstacles.draw(screen) 
 
         # Display obstacle count

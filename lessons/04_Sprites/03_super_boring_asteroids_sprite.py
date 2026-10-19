@@ -16,7 +16,7 @@ class Settings:
     colors = {"white": (255, 255, 255), "black": (0, 0, 0), "red": (255, 0, 0)}
 
 
-
+ima
 # Notice that this Spaceship class is a bit different: it is a subclass of
 # Sprite. Rather than a plain class, like in the previous examples, this class
 # inherits from the Sprite class. The main additional function of a Sprite is
