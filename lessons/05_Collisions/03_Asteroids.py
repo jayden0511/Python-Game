@@ -11,12 +11,10 @@ import random
 from pathlib import Path
 
 
-# Initialize Pygame
+# Initialize Pygame 
 pygame.init() 
  
-images_dir = Path(__file__).parent / "images" if (Path(__file__).parent / "images").exists() else Path(__file__).parent / "assets"
-
-
+images_dir = Path(__file__).parent / "images"
 # Screen dimensions
 
 class Settings:
