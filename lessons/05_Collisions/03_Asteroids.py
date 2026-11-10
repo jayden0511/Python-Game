@@ -1,268 +1,251 @@
-"""
-Dino Jump
-
-Use the arrow keys to move the blue square up and down to avoid the black
-obstacles. The game should end when the player collides with an obstacle ...
-but it does not. It's a work in progress, and you'll have to finish it. 
-
-"""                                                                                                                                                                                                                                                                                                                                                                                                   
-import pygame
-import random
 from pathlib import Path
 
+import pygame
+import math
+import random
 
-# Initialize Pygame 
-pygame.init() 
- 
-images_dir = Path(__file__).parent / "images"
-# Screen dimensions
 
 class Settings:
-    WIDTH, HEIGHT = 600, 300
-    
+    """Class to store game configuration."""
 
-    # Colors
-    BLUE = (0, 0, 255)
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-
-    # FPS 
-    FPS = 60 
-
-    # Player attributes
-    PLAYER_SIZE = 25
-
-    player_speed = 5
-    jump_strength = 12
-    gravity = 0.6
-
-    # Obstacle attributes
-    OBSTACLE_WIDTH = 20
-    OBSTACLE_HEIGHT = 30
-    obstacle_speed = 3
-
-settings = Settings()
-screen = pygame.display.set_mode((settings.WIDTH, settings.HEIGHT))
-pygame.display.set_caption("Dino Jump")
-
-# Font
-font = pygame.font.SysFont(None, 36)
+    width = 800
+    height = 600
+    fps = 60 
+    triangle_size = 20
+    projectile_speed = 10
+    projectile_size = 10 # 250 milliseconds between shots, or 4 shots per second  
+    colors = {"white": (255, 255, 255), "black": (0, 0, 0), "red": (255, 0, 0)}
 
 
-# Define an obstacle class
-class Obstacle(pygame.sprite.Sprite):
-    def __init__(self):
+
+# Notice that this Spaceship class is a bit different: it is a subclass of
+# Sprite. Rather than a plain class, like in the previous examples, this class
+# inherits from the Sprite class. The main additional function of a Sprite is
+# that it can be added and removed from groups. This is useful for handling
+# multiple objects of the same type, like projectiles. 
+class Asteroid(pygame.sprite.Sprite):
+    def __init__(self, settings, position):
         super().__init__()
-        self.image = pygame.image.load(
-            images_dir / "cactus_9.png"
-        ).convert_alpha()
-
-        self.image = pygame.transform.scale(
-                    self.image, (20, 30)
-                )
-        self.rect = self.image.get_rect()
-        self.rect.x = settings.WIDTH
-        self.rect.y = settings.HEIGHT - settings.OBSTACLE_HEIGHT - 10
-
-        self.explosion = pygame.image.load(images_dir / "explosion1.gif")
+        self.settings = settings
+        self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
         
-        
-    
+class Spaceship(pygame.sprite.Sprite): 
+    """Class representing the spaceship."""
 
-    def update(self):
-        self.rect.x -= settings.obstacle_speed
-        # Remove the obstacle if it goes off screen
-        if self.rect.right < 0:
-            self.kill()
-
-    def explode(self):
-        """Replace the image with an explosition image."""
-        
-        # Load the explosion image
-        self.image = self.explosion
-        self.image = pygame.transform.scale(self.image, (settings.OBSTACLE_WIDTH, settings.OBSTACLE_HEIGHT))
-        self.rect = self.image.get_rect(center=self.rect.center)
-
-
-# Define a player class
-class Player(pygame.sprite.Sprite):
-    def __init__(self): 
+    def __init__(self, settings, position):
         super().__init__()
-        self.image = pygame.image.load(
-            images_dir / "dino_0.png"
-        ).convert_alpha()
-        self.image = pygame.transform.scale(
-            self.image, (40, 40)
+
+        self.game = None  # will be set in Game.add()
+        self.settings = settings
+
+        self.angle = 0
+        self.original_image = self.create_spaceship_image()
+
+        self.velocity = pygame.Vector2(0, 0)
+
+        # For Sprites, the image and rect attributes are part of the Sprite class
+        # and are important. The image is the surface that will be drawn on the screen
+
+        self.image = self.original_image.copy() 
+        self.rect = self.image.get_rect(center=position)
+
+        # These values help us limit the rate of fire
+        self.last_shot = pygame.time.get_ticks() 
+
+    def create_spaceship_image(self):
+        """Creates the spaceship shape as a surface."""
+        image = pygame.Surface( (self.settings.triangle_size * 2, self.settings.triangle_size * 2),pygame.SRCALPHA)
+        points = [
+            (self.settings.triangle_size, 0),  # top point
+            (0, self.settings.triangle_size * 2),  # left side point
+            (self.settings.triangle_size * 2,self.settings.triangle_size * 2, ),  # right side point
+        ]
+        pygame.draw.polygon(image, self.settings.colors["white"], points)
+        assets = Path(__file__).parent / "images"
+        return pygame.image.load(assets/'alien1.gif')
+
+    
+            
+
+    def fire_projectile(self):
+        """Creates and fires a projectile."""
+
+        new_projectile = Projectile(
+            self.settings,
+            position=self.rect.center,
+            angle=self.angle,
+            velocity=self.settings.projectile_speed,
         )
 
-        self.rect = self.image.get_rect()
-        self.rect.x = 50
-        self.rect.y = settings.HEIGHT - settings.PLAYER_SIZE - 10
-        self.speed = settings.player_speed
-        self.velocity_y = 0
-        self.on_ground = True
-
+        # Important! The game will update all of the sprites in the group, so we
+        # need to add the projectile to the group to make sure it is updated.
+        self.game.add(new_projectile)
+ 
+ 
+    # The Sprite class defines an update method that is called every frame. We
+    # can override this method to add our own functionality. In this case, we
+    # are going to handle input and update the image of the spaceship. However,
+    # we also need to call the update method of the parent class, so we use
+    # super().update()
     def update(self):
+        
+        self.rect.y -= 10
+        print("Projectile updating")
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE] and self.on_ground:
-            self.velocity_y = -settings.jump_strength
-            self.on_ground = False
-        if keys[pygame.K_UP]:
-            self.rect.y -= self.speed
+
+        if keys[pygame.K_LEFT]:                         
+            self.angle -= 5
+
+        if keys[pygame.K_RIGHT]:
+            self.angle += 5
+
+        if keys[pygame.K_SPACE]:
+            self.fire_projectile()
+        if keys[pygame.K_UP]: 
+            self.velocity += pygame.Vector2(0, -0.1).rotate(self.angle)
         if keys[pygame.K_DOWN]:
-            self.rect.y += self.speed
+            self.velocity -= pygame.Vector2(0, -0.1).rotate(self.angle)
 
-        self.velocity_y += settings.gravity
-        self.rect.y += self.velocity_y
+        self.image = pygame.transform.rotate(self.original_image, -self.angle)
 
-        # Keep the player on screen
-        if self.rect.top < 0:
-            self.rect.top = 0
-        if self.rect.bottom > settings.HEIGHT:
-            self.rect.bottom = settings.HEIGHT
-            self.velocity_y = 0
-            self.on_ground = True
-
-# Create a player object
-player = Player()
-player_group = pygame.sprite.GroupSingle(player)
-
-# Add obstacles periodically
-def add_obstacle(obstacles):
-    # random.random() returns a random float between 0 and 1, so a value
-    # of 0.25 means that there is a 25% chance of adding an obstacle. Since
-    # add_obstacle() is called every 100ms, this means that on average, an
-    # obstacle will be added every 400ms.
-    # The combination of the randomness and the time allows for random
-    # obstacles, but not too close together. 
-    
-    if random.random() < 0.4:
-        obstacle = Obstacle()
-        obstacles.add(obstacle)
-        return 1
-    return 0
-
-
-# Main game loop
-def game_loop():
-    global high_score
-    clock = pygame.time.Clock()
-    game_over = False
-    last_obstacle_time = pygame.time.get_ticks()
-
-    # Group for obstacles
-    obstacles = pygame.sprite.Group()
-
-    player = Player()
-
-    obstacle_count = 0
-    score = 0
-    speed_level = 0
-    obstacle_speed = settings.obstacle_speed
-
-    while not game_over:
-        new_obstacle = 0
-    
-
+        # Reassigning the rect because the image has changed.
+        self.rect = self.image.get_rect(center=self.rect.center)
         
+        self.rect.center += self.velocity
+
+        if self.rect.left > self.settings.width:
+            self.rect.right = 0
+
+        if self.rect.right < 0:
+            self.rect.left = self.settings.width
+
+        if self.rect.top > self.settings.height:
+            self.rect.bottom = 0
+
+        if self.rect.bottom < 0:
+            self.rect.top = self.settings.height
+    
+
+        # Dont forget this part! If you don't call the Sprite update method, the
+        # sprite will not be drawn
+        super().update()
+
+    # WAIT! Where is the draw method? We don't need to define it because the
+    # Sprite class already has a draw method that will draw the image on the
+    # screen. We only need to add the sprite to a group and the group will take
+    # care of drawing the sprite.
+                                                                                  
+               
+                                      
+class Projectile(pygame.sprite.Sprite):
+    """Class to handle projectile movement and drawing."""
+
+    def __init__(self, settings, position, velocity, angle):
+        super().__init__()
+
+        self.game = None  # will be set in Game.add()
+        self.settings = settings
+
+        #  The (0,-1) part makes the vector point up, and the rotate method
+        # rotates the vector by the given angle. Finally, we multiply the vector
+        # by the velocity (scalar) to get the final velocity vector.
+        self.velocity = pygame.Vector2(0, -1).rotate(angle) * velocity
+
+        # Dont forget to create the image and rect attributes for the sprite
+        self.image = pygame.Surface(
+            (self.settings.projectile_size, self.settings.projectile_size),
+            pygame.SRCALPHA,
+        )
+
+        half_size = self.settings.projectile_size // 2
+
+        pygame.draw.circle(
+            self.image,
+            self.settings.colors["red"],
+            center=(half_size + 1, half_size + 1),
+            radius=half_size,
+        ) 
+
+        # Notice that we are using the rect attribute to store the position of the projectile
+        self.rect = self.image.get_rect(center=position)
+
+
+    def update(self):
+        self.rect.center += self.velocity
+        
+
+
+
+class Game:
+    """Class to manage the game loop and objects."""
+
+    def __init__(self, settings): 
+        pygame.init()
+        pygame.key.set_repeat(1250, 1250)
+        
+        self.settings = settings
+        self.screen = pygame.display.set_mode((self.settings.width, self.settings.height))
+        
+
+        pygame.display.set_caption("sonion")
+
+        self.clock = pygame.time.Clock()
+        self.running = True
+
+        self.all_sprites = pygame.sprite.Group()
+
+    def add(self, sprite):
+        """Adds a sprite to the game. Really important! This group is used to
+        update and draw all of the sprites."""
+
+        sprite.game = self
+
+        self.all_sprites.add(sprite)
+
+    def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+                self.running = False
 
-        # Update player
-        player.update()
+    def update(self):
 
-        # Add obstacles and update
-        if pygame.time.get_ticks() - last_obstacle_time > 1000:
-            score += 1
-            last_obstacle_time = pygame.time.get_ticks()
-            new_obstacle += add_obstacle(obstacles)
-            obstacle_count += new_obstacle
-        if new_obstacle and obstacle_count % 15 == 0:
-            settings.obstacle_speed += 1
-        
-        obstacles.update()
+        # We only need to call the update method of the group, and it will call
+        # the update method of all sprites But, we have to make sure to add all
+        # of the sprites to the group, so they are updated.
+        self.all_sprites.update()
 
-        # Check for collisions
-        collider = pygame.sprite.spritecollide(player, obstacles, dokill=False)
-        if collider:
-            collider[0].explode()
-            game_over =True
-        if score > high_score:
-            high_score = score
+    def draw(self):
+        self.screen.fill(self.settings.colors["black"])
+
+        # The sprite group has a draw method that will draw all of the sprites in
+        # the group.
+        self.all_sprites.draw(self.screen)
+
+        pygame.display.flip()
+
+    def run(self):
+        """Main Loop for the game."""
+            
        
-        # Draw everything
-        screen.fill(settings.WHITE)
-        screen.blit(player.image, player.rect)
-        obstacles.draw(screen) 
+        
+        while self.running:
+            self.handle_events()
+            self.update()
+            self.draw()
+            self.clock.tick(self.settings.fps)
+            keys = pygame.key.get_pressed()
 
-        # Display obstacle count
-        score_text = font.render(f"Score: {score}", True, settings.BLACK)
-        screen.blit(score_text, (10, 10))
+        pygame.quit()
 
-        pygame.display.update()
-        clock.tick(settings.FPS)
-
-    # Game over screen
-    screen.fill(settings.WHITE)
-
-    game_over_text = font.render(
-        "GAME OVER!",
-        True,
-        settings.BLACK
-    )
-
-    restart_text = font.render(
-        "Press R to restart",
-        True,
-        settings.BLACK
-    )
-    high_score_text = font.render(
-        f"High Score: {high_score}",
-        True,
-        settings.BLACK
-    )
-
-
-    screen.blit(
-        game_over_text,
-    (
-        settings.WIDTH // 2 - game_over_text.get_width() // 2,
-        settings.HEIGHT // 2 - game_over_text.get_height() // 2,
-    )
-    )
-
-    screen.blit(
-            restart_text,
-        (
-            settings.WIDTH // 2 - restart_text.get_width() // 2,
-            settings.HEIGHT // 2 + 20,
-        )
-    )
-    screen.blit(
-                high_score_text,
-            (
-                settings.WIDTH // 2 - high_score_text.get_width() // 2,
-                settings.HEIGHT // 2 + 60,
-            )
-        )
-
-    pygame.display.update()
-
-    waiting = True
-
-    while waiting: 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    return
-                    
-
-high_score = 0
+ 
 if __name__ == "__main__":
-    while True:
-        game_loop() 
+
+    settings = Settings()
+
+    game = Game(settings)
+
+    spaceship = Spaceship(settings, position=(settings.width // 2, settings.height // 2))
+
+    game.add(spaceship)
+
+    game.run()
