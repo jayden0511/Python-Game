@@ -98,7 +98,7 @@ class Spaceship(pygame.sprite.Sprite):
 
         if keys[pygame.K_RIGHT]:
             self.angle += 5
-
+ 
         if keys[pygame.K_SPACE]:
             self.fire_projectile()
         if keys[pygame.K_UP]: 
